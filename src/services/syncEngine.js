@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured, getCurrentUser } from './supabaseClient.js';
 import { outboxService } from '../db/outboxService.js';
 import { promptRepository, repositoryRepository } from '../db/repository.js';
-import { generateUUID } from '../utils/uuid.js';
+import { generateUUID, isValidUUID, ensureUUID } from '../utils/uuid.js';
 
 export const LAST_PULLED_KEY = 'pk_last_pulled_at';
 
@@ -142,19 +142,25 @@ class SyncEngine {
     const pushedIds = new Set();
 
     for (const item of pending) {
+      // If an item has failed repeatedly (> 5 times), skip it to prevent blocking the queue
+      if ((item.retryCount || 0) > 5) {
+        continue;
+      }
+
       await outboxService.markMutationProcessing(item.opId);
 
       try {
         if (item.entity === 'prompt') {
+          const resourceId = ensureUUID(item.entityId);
           if (item.operation === 'DELETE') {
-            await supabase.from('resources').delete().match({ id: item.entityId, user_id: user.id });
+            await supabase.from('resources').delete().match({ id: resourceId, user_id: user.id });
           } else if (item.payload) {
             const p = item.payload;
             const updatedIso = new Date(p.updatedAt || Date.now()).toISOString();
             
             // Upsert resource base
             const { error: resErr } = await supabase.from('resources').upsert({
-              id: item.entityId,
+              id: resourceId,
               user_id: user.id,
               type: 'prompt',
               title: p.title || 'Untitled Prompt',
@@ -165,11 +171,15 @@ class SyncEngine {
             });
             if (resErr) throw resErr;
 
+            const linkedPromptId = p.linkedPromptId
+              ? (isValidUUID(p.linkedPromptId) ? p.linkedPromptId : ensureUUID(p.linkedPromptId))
+              : null;
+
             // Upsert prompt details
             const { error: promptErr } = await supabase.from('prompts').upsert({
-              resource_id: item.entityId,
+              resource_id: resourceId,
               user_id: user.id,
-              legacy_id: p.legacyId ? String(p.legacyId) : null,
+              legacy_id: p.legacyId ? String(p.legacyId) : (p.id ? String(p.id) : String(resourceId)),
               category: p.category || 'General',
               model: p.model || 'Universal',
               tags: Array.isArray(p.tags) ? p.tags : [],
@@ -179,20 +189,21 @@ class SyncEngine {
               notes: p.notes || '',
               thumbnail: p.thumbnail || null,
               images: Array.isArray(p.images) ? p.images : [],
-              linked_prompt_id: p.linkedPromptId || null,
+              linked_prompt_id: linkedPromptId,
               linked_repo_ids: Array.isArray(p.linkedRepoIds) ? p.linkedRepoIds : []
             });
             if (promptErr) throw promptErr;
           }
         } else if (item.entity === 'repo') {
+          const resourceId = ensureUUID(item.entityId);
           if (item.operation === 'DELETE') {
-            await supabase.from('resources').delete().match({ id: item.entityId, user_id: user.id });
+            await supabase.from('resources').delete().match({ id: resourceId, user_id: user.id });
           } else if (item.payload) {
             const r = item.payload;
             const updatedIso = new Date(r.lastSyncedAt || Date.now()).toISOString();
 
             const { error: resErr } = await supabase.from('resources').upsert({
-              id: item.entityId,
+              id: resourceId,
               user_id: user.id,
               type: 'repo',
               title: r.fullName || r.name || 'Untitled Repository',
@@ -204,7 +215,7 @@ class SyncEngine {
             if (resErr) throw resErr;
 
             const { error: repoErr } = await supabase.from('repositories').upsert({
-              resource_id: item.entityId,
+              resource_id: resourceId,
               user_id: user.id,
               github_id: r.githubId || null,
               owner: r.owner || '',
@@ -243,9 +254,10 @@ class SyncEngine {
           }
         }
 
-        // Successfully pushed
+        // Successfully pushed (or completed local entities like bookmarks)
         await outboxService.markMutationCompleted(item.opId);
         pushedIds.add(item.entityId);
+        if (item.entityId) pushedIds.add(ensureUUID(item.entityId));
         count++;
       } catch (err) {
         await outboxService.markMutationFailed(item.opId, err.message || String(err));

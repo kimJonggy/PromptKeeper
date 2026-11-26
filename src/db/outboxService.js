@@ -86,11 +86,31 @@ export const outboxService = {
   },
 
   /**
+   * Recovers any mutations stuck in 'processing' status (e.g. after network abort or app restart).
+   * @param {number} [olderThanMs=15000]
+   * @returns {Promise<number>} Number of recovered items
+   */
+  async recoverStuckProcessingMutations(olderThanMs = 15000) {
+    if (!isIndexedDBSupported()) return 0;
+    const cutoff = Date.now() - olderThanMs;
+    const stuck = await db.syncOutbox
+      .filter(item => item.status === 'processing' && (!item.processingStartedAt || item.processingStartedAt < cutoff))
+      .toArray();
+
+    for (const item of stuck) {
+      await db.syncOutbox.update(item.opId, { status: 'pending' });
+    }
+    return stuck.length;
+  },
+
+  /**
    * Retrieves pending or failed mutations sorted by timestamp.
    * @returns {Promise<Array<Object>>}
    */
   async getPendingMutations() {
     if (!isIndexedDBSupported()) return [];
+    // First auto-recover any orphaned processing mutations
+    await this.recoverStuckProcessingMutations();
     const items = await db.syncOutbox
       .filter(item => item.status === 'pending' || item.status === 'failed')
       .toArray();
@@ -103,7 +123,10 @@ export const outboxService = {
    */
   async markMutationProcessing(opId) {
     if (!isIndexedDBSupported()) return;
-    await db.syncOutbox.update(opId, { status: 'processing' });
+    await db.syncOutbox.update(opId, { 
+      status: 'processing',
+      processingStartedAt: Date.now()
+    });
   },
 
   /**

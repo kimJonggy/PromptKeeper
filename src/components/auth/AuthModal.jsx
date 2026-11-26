@@ -213,9 +213,34 @@ export default function AuthModal({ isOpen, onClose, promptsCount = 0, reposCoun
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Pending Changes in Outbox:</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: pendingOutbox > 0 ? 'var(--accent)' : 'var(--text-tertiary)' }}>
-                    {pendingOutbox} items
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: pendingOutbox > 0 ? 'var(--accent)' : 'var(--text-tertiary)' }}>
+                      {pendingOutbox} items
+                    </span>
+                    {pendingOutbox > 0 && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await outboxService.clearOutbox();
+                          setPendingOutbox(0);
+                          setSuccessMsg('Outbox queue cleared.');
+                        }}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#f87171',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 4,
+                          cursor: 'pointer'
+                        }}
+                        title="Clear stuck outbox mutations"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 

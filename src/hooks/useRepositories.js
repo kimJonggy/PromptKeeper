@@ -10,7 +10,7 @@ const STORAGE_KEY = 'pk_repositories';
 // High-quality starter repositories for clean first-load experience
 const DEFAULT_REPOSITORIES = [
   {
-    id: 'repo-starter-promptkeeper',
+    id: '88472910-0000-4000-8000-000000000001',
     githubId: 88472910,
     owner: 'adnan911',
     name: 'promptKeeper',
@@ -37,7 +37,7 @@ const DEFAULT_REPOSITORIES = [
     collections: ['Active Projects']
   },
   {
-    id: 'repo-starter-react',
+    id: '10270250-0000-4000-8000-000000000002',
     githubId: 10270250,
     owner: 'facebook',
     name: 'react',
@@ -64,7 +64,7 @@ const DEFAULT_REPOSITORIES = [
     collections: ['Frontend Stack']
   },
   {
-    id: 'repo-starter-shadcn',
+    id: '58822363-0000-4000-8000-000000000003',
     githubId: 588223637,
     owner: 'shadcn-ui',
     name: 'ui',

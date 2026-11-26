@@ -1,5 +1,5 @@
 import { db, isIndexedDBSupported } from './index.js';
-import { generateUUID } from '../utils/uuid.js';
+import { generateUUID, ensureUUID } from '../utils/uuid.js';
 import { validatePrompt, validateBookmark } from '../utils/validation.js';
 import { outboxService } from './outboxService.js';
 
@@ -91,7 +91,7 @@ export const promptRepository = {
     if (!isIndexedDBSupported()) return rawPrompt;
 
     const { sanitized } = validatePrompt(rawPrompt);
-    const resourceId = sanitized.id || generateUUID();
+    const resourceId = sanitized.id ? ensureUUID(sanitized.id) : generateUUID();
     const now = Date.now();
     const createdTimestamp = Number(sanitized.created) || now;
 
@@ -277,7 +277,7 @@ export const repositoryRepository = {
   async save(repo, options = {}) {
     if (!isIndexedDBSupported()) return repo;
 
-    const resourceId = repo.id || generateUUID();
+    const resourceId = repo.id ? ensureUUID(repo.id) : generateUUID();
     const now = Date.now();
     const savedTimestamp = typeof repo.savedAt === 'number' ? repo.savedAt : now;
 

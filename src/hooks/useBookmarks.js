@@ -9,7 +9,7 @@ const STORAGE_KEY = 'pk_bookmarks';
 
 export const DEFAULT_BOOKMARKS = [
   {
-    id: 'bm-starter-mdn',
+    id: 'b0000001-0000-4000-8000-000000000001',
     url: 'https://developer.mozilla.org/en-US/',
     title: 'MDN Web Docs',
     domain: 'developer.mozilla.org',
@@ -28,7 +28,7 @@ export const DEFAULT_BOOKMARKS = [
     linkedRepoIds: []
   },
   {
-    id: 'bm-starter-tailwind',
+    id: 'b0000001-0000-4000-8000-000000000002',
     url: 'https://tailwindcss.com/docs',
     title: 'Tailwind CSS Documentation',
     domain: 'tailwindcss.com',
@@ -47,7 +47,7 @@ export const DEFAULT_BOOKMARKS = [
     linkedRepoIds: []
   },
   {
-    id: 'bm-starter-antigravity',
+    id: 'b0000001-0000-4000-8000-000000000003',
     url: 'https://antigravity.google/',
     title: 'Google Antigravity Documentation',
     domain: 'antigravity.google',
@@ -63,7 +63,7 @@ export const DEFAULT_BOOKMARKS = [
     updatedAt: Date.now(),
     collections: ['AI & ML'],
     linkedPromptIds: [],
-    linkedRepoIds: ['repo-starter-promptkeeper']
+    linkedRepoIds: ['88472910-0000-4000-8000-000000000001']
   }
 ];
 

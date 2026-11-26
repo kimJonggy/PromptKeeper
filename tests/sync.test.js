@@ -182,5 +182,38 @@ describe('Phase 5: Outbox Queue & Offline Cloud Sync', () => {
     const state = syncEngine.getState();
     expect(['idle', 'offline', 'synced']).toContain(state.status);
   });
+
+  it('recovers stuck processing mutations back to pending', async () => {
+    const opId = await outboxService.queueMutation({
+      entity: 'prompt',
+      entityId: 'p-stuck',
+      operation: 'UPDATE',
+      payload: { title: 'Was stuck' }
+    });
+
+    await outboxService.markMutationProcessing(opId);
+    // Artificially age the processing record
+    await db.syncOutbox.update(opId, { processingStartedAt: Date.now() - 20000 });
+
+    const recoveredCount = await outboxService.recoverStuckProcessingMutations(10000);
+    expect(recoveredCount).toBe(1);
+
+    const item = await db.syncOutbox.get(opId);
+    expect(item.status).toBe('pending');
+  });
+
+  it('clears outbox queue cleanly', async () => {
+    await outboxService.queueMutation({
+      entity: 'prompt',
+      entityId: 'p-clear',
+      operation: 'INSERT',
+      payload: { title: 'To Clear' }
+    });
+
+    expect(await outboxService.getOutboxCount()).toBeGreaterThan(0);
+    await outboxService.clearOutbox();
+    expect(await outboxService.getOutboxCount()).toBe(0);
+  });
 });
+
 
