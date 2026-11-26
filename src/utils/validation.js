@@ -77,15 +77,39 @@ export function validatePrompt(p) {
   };
 }
 
+/**
+ * Ensures a URL is safe to open/render in an <a href> link.
+ * Only permits http: and https: protocols, strictly blocking javascript:, data:, vbscript:, etc.
+ * @param {string} url
+ * @returns {string} Sanitized URL or '#' if unsafe/invalid
+ */
+export function safeExternalUrl(url) {
+  if (!url || typeof url !== 'string') return '#';
+  const trimmed = url.trim();
+  if (/^(?:javascript|data|vbscript|blob):/i.test(trimmed)) {
+    return '#';
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return '#';
+}
+
 export function validateBookmark(b) {
   const errors = [];
   if (!b || typeof b !== 'object' || Array.isArray(b)) {
     return { isValid: false, errors: ['Bookmark record must be an object'], sanitized: null };
   }
 
-  const url = typeof b.url === 'string' ? b.url.trim() : '';
+  const rawUrl = typeof b.url === 'string' ? b.url.trim() : '';
+  let url = rawUrl;
   if (!url) {
     errors.push('Bookmark URL is required and cannot be empty');
+  } else if (/^(?:javascript|data|vbscript|blob):/i.test(url)) {
+    errors.push('Invalid URL protocol. Only HTTP and HTTPS URLs are allowed.');
+    url = '';
+  } else if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
   }
 
   const validStatuses = ['inbox', 'reading', 'reference', 'tools', 'archived'];

@@ -159,7 +159,10 @@ CREATE POLICY "Users can delete their own collections" ON public.collections
 CREATE POLICY "Users can view their own resource collections" ON public.resource_collections
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own resource collections" ON public.resource_collections
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id AND
+    EXISTS (SELECT 1 FROM public.resources r WHERE r.id = resource_id AND r.user_id = auth.uid())
+  );
 CREATE POLICY "Users can update their own resource collections" ON public.resource_collections
   FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own resource collections" ON public.resource_collections

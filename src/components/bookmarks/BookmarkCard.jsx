@@ -15,6 +15,7 @@ import {
 import { BOOKMARK_STATUSES } from '../../constants/bookmarkConstants.js';
 import { getDeepCardColor } from '../../constants/repositoryConstants.js';
 import { getFaviconUrl } from '../../services/bookmarkService.js';
+import { safeExternalUrl } from '../../utils/validation.js';
 import { useApp } from '../../context/AppContext.jsx';
 
 export default function BookmarkCard({
@@ -196,7 +197,7 @@ export default function BookmarkCard({
         {/* Quick Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <a
-            href={bm.url}
+            href={safeExternalUrl(bm.url)}
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
@@ -516,7 +517,7 @@ export default function BookmarkCard({
           </button>
 
           <a
-            href={bm.url}
+            href={safeExternalUrl(bm.url)}
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}

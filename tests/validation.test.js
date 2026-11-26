@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validatePrompt, validateVault, sanitizeTag } from '../src/utils/validation.js';
+import { validatePrompt, validateVault, sanitizeTag, validateBookmark, safeExternalUrl } from '../src/utils/validation.js';
 
 describe('Validation Utilities', () => {
   describe('sanitizeTag', () => {
@@ -113,5 +113,32 @@ describe('Validation Utilities', () => {
       expect(res.errors).toHaveLength(1);
     });
   });
+
+  describe('Security: safeExternalUrl & validateBookmark', () => {
+    it('blocks dangerous URL schemes like javascript:, data:, vbscript:', () => {
+      expect(safeExternalUrl('javascript:alert(1)')).toBe('#');
+      expect(safeExternalUrl('javascript:fetch("attacker.com")')).toBe('#');
+      expect(safeExternalUrl('data:text/html,<script>alert(1)</script>')).toBe('#');
+      expect(safeExternalUrl('vbscript:msgbox(1)')).toBe('#');
+      expect(safeExternalUrl(null)).toBe('#');
+      expect(safeExternalUrl('')).toBe('#');
+    });
+
+    it('permits safe http:// and https:// URLs', () => {
+      expect(safeExternalUrl('https://github.com/adnan911/promptKeeper')).toBe('https://github.com/adnan911/promptKeeper');
+      expect(safeExternalUrl('http://localhost:5173')).toBe('http://localhost:5173');
+    });
+
+    it('rejects javascript: schemes in validateBookmark', () => {
+      const malicious = {
+        title: 'Exploit Bookmark',
+        url: 'javascript:alert(document.domain)'
+      };
+      const res = validateBookmark(malicious);
+      expect(res.isValid).toBe(false);
+      expect(res.errors).toContain('Invalid URL protocol. Only HTTP and HTTPS URLs are allowed.');
+    });
+  });
 });
+
 

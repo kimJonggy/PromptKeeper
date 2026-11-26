@@ -21,6 +21,7 @@ import {
   DEFAULT_BOOKMARK_CATEGORIES 
 } from '../../constants/bookmarkConstants.js';
 import { BENTO_CARD_COLORS, getDeepCardColor } from '../../constants/repositoryConstants.js';
+import { safeExternalUrl } from '../../utils/validation.js';
 import { useApp } from '../../context/AppContext.jsx';
 
 export default function BookmarkDetail({
@@ -251,7 +252,7 @@ export default function BookmarkDetail({
               <span>{bookmark.domain}</span>
               <span>•</span>
               <a 
-                href={bookmark.url} 
+                href={safeExternalUrl(bookmark.url)} 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 style={{ color: bookmark.color || 'var(--accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 2 }}
@@ -267,7 +268,7 @@ export default function BookmarkDetail({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           {/* Primary Open */}
           <a
-            href={bookmark.url}
+            href={safeExternalUrl(bookmark.url)}
             target="_blank"
             rel="noopener noreferrer"
             title="Open in new tab"
