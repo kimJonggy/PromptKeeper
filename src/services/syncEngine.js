@@ -109,10 +109,12 @@ class SyncEngine {
 
     try {
       // 1. Push Phase: Process pending mutations in outbox
-      pushed = await this.pushOutboxMutations(user);
+      const pushedResult = await this.pushOutboxMutations(user);
+      pushed = pushedResult.count;
+      const pushedIds = pushedResult.pushedIds;
 
-      // 2. Pull Phase: Fetch remote changes since last pull
-      pulled = await this.pullRemoteChanges(user);
+      // 2. Pull Phase: Fetch remote changes since last pull (skipping our own freshly pushed items)
+      pulled = await this.pullRemoteChanges(user, pushedIds);
 
       this.lastSyncedAt = Date.now();
       this.retryDelay = 1000; // Reset backoff on success
@@ -132,11 +134,12 @@ class SyncEngine {
   /**
    * Pushes queued mutations from local outbox to Supabase.
    * @param {Object} user
-   * @returns {Promise<number>} count of pushed mutations
+   * @returns {Promise<{ count: number, pushedIds: Set<string> }>}
    */
   async pushOutboxMutations(user) {
     const pending = await outboxService.getPendingMutations();
     let count = 0;
+    const pushedIds = new Set();
 
     for (const item of pending) {
       await outboxService.markMutationProcessing(item.opId);
@@ -242,6 +245,7 @@ class SyncEngine {
 
         // Successfully pushed
         await outboxService.markMutationCompleted(item.opId);
+        pushedIds.add(item.entityId);
         count++;
       } catch (err) {
         await outboxService.markMutationFailed(item.opId, err.message || String(err));
@@ -249,7 +253,7 @@ class SyncEngine {
       }
     }
 
-    return count;
+    return { count, pushedIds };
   }
 
   /**
@@ -257,9 +261,10 @@ class SyncEngine {
    * Handles non-destructive branch conflict resolution.
    * 
    * @param {Object} user
+   * @param {Set<string>} [pushedIds=new Set()] Entity IDs pushed in current cycle
    * @returns {Promise<number>} count of pulled items
    */
-  async pullRemoteChanges(user) {
+  async pullRemoteChanges(user, pushedIds = new Set()) {
     const lastPulled = localStorage.getItem(LAST_PULLED_KEY) || '1970-01-01T00:00:00Z';
     const nowIso = new Date().toISOString();
 
@@ -282,6 +287,9 @@ class SyncEngine {
     let pulledCount = 0;
 
     for (const r of remoteResources) {
+      // Skip re-downloading items that this client just pushed in this exact sync cycle
+      if (pushedIds.has(r.id)) continue;
+
       const hasConflict = pendingEntityIds.has(r.id);
 
       if (r.type === 'prompt') {
@@ -305,9 +313,9 @@ class SyncEngine {
               tags: [...(pData.tags || []), 'sync-conflict'],
               fav: false,
               notes: `Auto-preserved conflicting version downloaded at ${new Date().toLocaleString()}.\n\nOriginal notes:\n${pData.notes || ''}`
-            });
+            }, { skipOutbox: true });
           } else {
-            // Apply remote update locally
+            // Apply remote update locally without re-queueing to outbox
             await promptRepository.save({
               id: r.id,
               legacyId: pData.legacy_id,
@@ -323,7 +331,7 @@ class SyncEngine {
               images: pData.images || [],
               linkedPromptId: pData.linked_prompt_id,
               linkedRepoIds: pData.linked_repo_ids || []
-            });
+            }, { skipOutbox: true });
           }
           pulledCount++;
         }
@@ -355,7 +363,7 @@ class SyncEngine {
             isFavorite: r.fav,
             isPinned: repoData.is_pinned,
             defaultBranch: repoData.default_branch
-          });
+          }, { skipOutbox: true });
           pulledCount++;
         }
       }

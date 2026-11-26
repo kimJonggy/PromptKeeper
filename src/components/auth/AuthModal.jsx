@@ -48,7 +48,12 @@ export default function AuthModal({ isOpen, onClose, promptsCount = 0, reposCoun
     });
 
     const unsubSync = syncEngine.subscribe((state) => {
-      if (isMounted) setSyncState(state);
+      if (isMounted) {
+        setSyncState(state);
+        outboxService.getOutboxCount().then(c => {
+          if (isMounted) setPendingOutbox(c);
+        });
+      }
     });
 
     return () => {

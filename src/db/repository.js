@@ -84,9 +84,10 @@ export const promptRepository = {
   /**
    * Saves or updates a single prompt in Dexie.
    * @param {Object} rawPrompt
+   * @param {Object} [options={}] Options such as { skipOutbox: true }
    * @returns {Promise<Object>} The saved composite prompt object
    */
-  async save(rawPrompt) {
+  async save(rawPrompt, options = {}) {
     if (!isIndexedDBSupported()) return rawPrompt;
 
     const { sanitized } = validatePrompt(rawPrompt);
@@ -153,16 +154,18 @@ export const promptRepository = {
       updatedAt: now
     };
 
-    // Queue mutation for offline-first sync
-    try {
-      await outboxService.queueMutation({
-        entity: 'prompt',
-        entityId: resourceId,
-        operation: 'UPDATE',
-        payload: compositePrompt
-      });
-    } catch (err) {
-      console.warn('Failed to queue prompt mutation:', err);
+    // Queue mutation for offline-first sync unless explicitly skipped (e.g. from cloud pull)
+    if (!options.skipOutbox) {
+      try {
+        await outboxService.queueMutation({
+          entity: 'prompt',
+          entityId: resourceId,
+          operation: 'UPDATE',
+          payload: compositePrompt
+        });
+      } catch (err) {
+        console.warn('Failed to queue prompt mutation:', err);
+      }
     }
 
     return compositePrompt;
@@ -268,9 +271,10 @@ export const repositoryRepository = {
   /**
    * Saves or updates a repository in Dexie.
    * @param {Object} repo
+   * @param {Object} [options={}] Options such as { skipOutbox: true }
    * @returns {Promise<Object>}
    */
-  async save(repo) {
+  async save(repo, options = {}) {
     if (!isIndexedDBSupported()) return repo;
 
     const resourceId = repo.id || generateUUID();
@@ -319,15 +323,17 @@ export const repositoryRepository = {
       updatedAt: now
     };
 
-    try {
-      await outboxService.queueMutation({
-        entity: 'repo',
-        entityId: resourceId,
-        operation: 'UPDATE',
-        payload: compositeRepo
-      });
-    } catch (err) {
-      console.warn('Failed to queue repo mutation:', err);
+    if (!options.skipOutbox) {
+      try {
+        await outboxService.queueMutation({
+          entity: 'repo',
+          entityId: resourceId,
+          operation: 'UPDATE',
+          payload: compositeRepo
+        });
+      } catch (err) {
+        console.warn('Failed to queue repo mutation:', err);
+      }
     }
 
     return compositeRepo;
@@ -375,8 +381,9 @@ export const collectionRepository = {
   /**
    * Saves or updates a collection.
    * @param {Object} col
+   * @param {Object} [options={}] Options such as { skipOutbox: true }
    */
-  async save(col) {
+  async save(col, options = {}) {
     if (!isIndexedDBSupported()) return col;
     const id = col.id || `col-${col.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
     const now = Date.now();
@@ -391,15 +398,17 @@ export const collectionRepository = {
     });
 
     const compositeCol = { ...col, id, updatedAt: now };
-    try {
-      await outboxService.queueMutation({
-        entity: 'collection',
-        entityId: id,
-        operation: 'UPDATE',
-        payload: compositeCol
-      });
-    } catch (err) {
-      console.warn('Failed to queue collection mutation:', err);
+    if (!options.skipOutbox) {
+      try {
+        await outboxService.queueMutation({
+          entity: 'collection',
+          entityId: id,
+          operation: 'UPDATE',
+          payload: compositeCol
+        });
+      } catch (err) {
+        console.warn('Failed to queue collection mutation:', err);
+      }
     }
 
     return compositeCol;
@@ -510,9 +519,10 @@ export const bookmarkRepository = {
   /**
    * Saves or updates a bookmark in Dexie.
    * @param {Object} rawBookmark
+   * @param {Object} [options={}] Options such as { skipOutbox: true }
    * @returns {Promise<Object>}
    */
-  async save(rawBookmark) {
+  async save(rawBookmark, options = {}) {
     if (!isIndexedDBSupported() || !db.bookmarks) return rawBookmark;
 
     const validation = validateBookmark(rawBookmark);
@@ -555,15 +565,17 @@ export const bookmarkRepository = {
       updatedAt: now
     };
 
-    try {
-      await outboxService.queueMutation({
-        entity: 'bookmark',
-        entityId: resourceId,
-        operation: 'UPDATE',
-        payload: compositeBm
-      });
-    } catch (err) {
-      console.warn('Failed to queue bookmark mutation:', err);
+    if (!options.skipOutbox) {
+      try {
+        await outboxService.queueMutation({
+          entity: 'bookmark',
+          entityId: resourceId,
+          operation: 'UPDATE',
+          payload: compositeBm
+        });
+      } catch (err) {
+        console.warn('Failed to queue bookmark mutation:', err);
+      }
     }
 
     return compositeBm;
