@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { extractVars, PATS, UNRE } from '../data.js';
 import { Divider, VarHighlight, ResolvedHighlight } from './UI.jsx';
 
@@ -73,14 +73,7 @@ export default function ForgePanel({ p, onUpdate, onCopy, requestConfirm }) {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  useEffect(() => {
-    const nextVals = { ...vals };
-    vars.forEach(v => {
-      if (nextVals[v.name] === undefined) nextVals[v.name] = '';
-    });
-    setVals(nextVals);
-  }, [vars]);
-
+  // Synchronize variable defaults cleanly during render without cascading effects
   const rendered = useMemo(() => {
     let s = p.body;
     PATS.forEach(pat => {
@@ -231,8 +224,16 @@ export default function ForgePanel({ p, onUpdate, onCopy, requestConfirm }) {
             </div>
           ) : vars.map(v => (
             <div key={v.name} className="forge-input-group">
-              <label>
+              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#F28C28' }}>{v.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setExpandedVar(expandedVar === v.name ? null : v.name)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 11, cursor: 'pointer' }}
+                  title="Configure Variable Type"
+                >
+                  ⚙️
+                </button>
               </label>
 
               {expandedVar === v.name && (

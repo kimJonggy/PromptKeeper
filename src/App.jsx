@@ -1,15 +1,41 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import React from 'react';
+import logoImg from './assets/logo.png';
+import { 
+  Menu, 
+  Plus, 
+  Search, 
+  X, 
+  LayoutGrid, 
+  List, 
+  Zap,
+  Sparkles,
+  Play
+} from 'lucide-react';
 import Sidebar from './components/Sidebar.jsx';
 import PromptCard from './components/PromptCard.jsx';
 import DetailPanel from './components/DetailPanel.jsx';
 import ImportExportModal from './components/ImportExportModal.jsx';
 import PromptModal from './components/PromptModal.jsx';
 import ForgeStudio from './components/ForgeStudio.jsx';
-import logo from './assets/logo.jpg';
+import RepositoryHub from './components/repos/RepositoryHub.jsx';
+import BookmarkHub from './components/bookmarks/BookmarkHub.jsx';
+import InboxView from './components/inbox/InboxView.jsx';
+import SavedListsView from './components/lists/SavedListsView.jsx';
+import QuickSaveModal from './components/common/QuickSaveModal.jsx';
+import TagManagerModal from './components/common/TagManagerModal.jsx';
+import PromptVariableRunnerModal from './components/studio/PromptVariableRunnerModal.jsx';
+import PromptOptimizerModal from './components/studio/PromptOptimizerModal.jsx';
+import RepoReadmeDrawerModal from './components/repos/RepoReadmeDrawerModal.jsx';
+import BulkActionBar from './components/common/BulkActionBar.jsx';
+import CommandPalette from './components/common/CommandPalette.jsx';
+import MobileBottomNav from './components/common/MobileBottomNav.jsx';
+import AuthModal from './components/auth/AuthModal.jsx';
+import FinanceBentoDemo from './components/ui/FinanceBentoDemo.jsx';
 import { Toast, ConfirmModal } from './components/UI.jsx';
 import OnboardingModal from './components/OnboardingModal.jsx';
-import { useLocalStorage, useToast, useKeyboard } from './hooks.js';
-import { SEED_PROMPTS, DEFAULT_CAT_COLORS } from './data.js';
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import { useKeyboard } from './hooks.js';
+import { useApp } from './context/AppContext.jsx';
 
 const SORT_OPTIONS = [
   { value: 'newest',   label: 'Newest' },
@@ -19,49 +45,35 @@ const SORT_OPTIONS = [
 ];
 
 export default function App() {
-  const [prompts, setPrompts] = useLocalStorage('pk_prompts_v2', []);
-  const [onboardingDone, setOnboardingDone] = useLocalStorage('pk_onboarding_v1', false);
-  const [categories, setCategories] = useLocalStorage('pk_categories', ['All', 'Coding', 'Creative', 'Business', 'System', 'Research', 'Personal']);
-  const [categoryColors, setCategoryColors] = useLocalStorage('pk_cat_colors', DEFAULT_CAT_COLORS);
-  const [modelColors, setModelColors] = useLocalStorage('pk_model_colors', {
-    'GPT-4':   '#EBA328', // Golden
-    'GPT-3.5': '#EDD8DF', // Cream
-    'Claude':  '#AB6937', // Rust
-    'Gemini':  '#E8C2B3', // Rose
-    'Llama':   '#1E4445', // Teal
-    'Mistral': '#233436', // Slate
-    'DeepSeek': '#3B82F6',
-  });
-  const { toasts, show: toast } = useToast();
-
-  const [search, setSearch]           = useState('');
-  const [catFilter, setCatFilter]     = useState('All');
-  const [tagFilter, setTagFilter]     = useState('');
-  const [modelFilter, setModelFilter] = useState('All');
-  const [sort, setSort]               = useState('newest');
-  const [activeId, setActiveId]       = useState(null);
-  const [showModal, setShowModal]     = useState(false);
-  const [editPrompt, setEditPrompt]   = useState(null);
-  const [showIO, setShowIO]           = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
-  const [isStudioView, setIsStudioView] = useState(false);
-  const [theme, setTheme]             = useLocalStorage('pk_theme', 'dark');
-  const [confirmConfig, setConfirmConfig] = useState(null);
-
-  const requestConfirm = useCallback((config) => {
-    setConfirmConfig(config);
-  }, []);
-
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const {
+    search, setSearch, sort, setSort, catFilter, setCatFilter, modelFilter, setModelFilter, tagFilter, setTagFilter,
+    sidebarOpen, setSidebarOpen, fabOpen, setFabOpen,
+    showModal, setShowModal, showIO, setShowIO, isStudioView, setIsStudioView,
+    copySuccess, setCopySuccess, confirmConfig, setConfirmConfig, setActiveId,
+    filtered, hasFilters, activePrompt, onboardingDone,
+    handleOnboarding, openNew, openStudio, toasts, toast,
+    viewMode, setViewMode, activeNav, setActiveNav,
+    categories = [],
+    repositories, addRepository, updateRepository, deleteRepository,
+    toggleFavoriteRepo, togglePinRepo, updateRepoStatus, refreshRepoMetadata,
+    repoStatusCounts, repoLanguageCounts, requestConfirm,
+    bookmarks, addBookmark, updateBookmark, deleteBookmark,
+    toggleFavoriteBookmark, togglePinBookmark, updateBookmarkStatus,
+    bookmarkStatusCounts, bookmarkCategoryCounts,
+    prompts, commandPaletteOpen, setCommandPaletteOpen, toggleTheme,
+    authModalOpen, setAuthModalOpen, setAccent,
+    quickSaveOpen, setQuickSaveOpen,
+    tagManagerOpen, setTagManagerOpen,
+    runnerPrompt, closeRunner, openRunner,
+    optimizerConfig, closeOptimizer, openOptimizer,
+    readmeRepo, closeReadme, openReadme,
+    bulkSelectedIds, setBulkSelectedIds,
+    recentItems
+  } = useApp();
 
   useKeyboard({
-    'cmd+n': () => openNew(),
-    'cmd+k': () => document.getElementById('search-input')?.focus(),
+    'cmd+n': () => setQuickSaveOpen(true),
+    'cmd+k': () => setCommandPaletteOpen(open => !open),
     'escape': () => { 
       setActiveId(null); 
       setShowModal(false); 
@@ -69,385 +81,539 @@ export default function App() {
       setSidebarOpen(false); 
       setFabOpen(false);
       setIsStudioView(false);
+      setCommandPaletteOpen(false);
+      setQuickSaveOpen(false);
+      setTagManagerOpen(false);
+      closeRunner();
+      closeOptimizer();
+      closeReadme();
     },
   });
 
-  const activePrompt = useMemo(() => prompts.find(p => p.id === activeId), [prompts, activeId]);
-  const linkedPrompt = useMemo(() => 
-    activePrompt?.linkedPromptId ? prompts.find(x => String(x.id) === String(activePrompt.linkedPromptId)) : null
-  , [prompts, activePrompt]);
-
-  const filtered = useMemo(() => {
-    let r = [...prompts];
-    if (catFilter !== 'All')   r = r.filter(p => p.category === catFilter);
-    if (modelFilter !== 'All') r = r.filter(p => p.model === modelFilter);
-    if (tagFilter)             r = r.filter(p => p.tags.includes(tagFilter));
-    if (search) {
-      const q = search.toLowerCase();
-      r = r.filter(p =>
-        p.title.toLowerCase().includes(q) ||
-        p.body.toLowerCase().includes(q) ||
-        p.tags.some(t => t.includes(q))
-      );
-    }
-    if (sort === 'newest')   r.sort((a, b) => b.created - a.created);
-    if (sort === 'mostused') r.sort((a, b) => b.uses - a.uses);
-    if (sort === 'az')       r.sort((a, b) => a.title.localeCompare(b.title));
-    if (sort === 'fav')      r = r.filter(p => p.fav);
-    return r;
-  }, [prompts, catFilter, modelFilter, tagFilter, search, sort]);
-
-  const autoTag = useCallback((body, existingTags = []) => {
-    const keywords = {
-      'code': ['coding', 'dev', 'programming'],
-      'react': ['react', 'frontend', 'js'],
-      'email': ['email', 'writing', 'business'],
-      'blog': ['writing', 'content', 'seo'],
-      'story': ['creative', 'fiction'],
-      'sql': ['database', 'query'],
-      'css': ['styling', 'ui'],
-      'fix': ['debug', 'fix'],
-    };
-    const newTags = [...existingTags];
-    const text = body.toLowerCase();
-    Object.entries(keywords).forEach(([key, tags]) => {
-      if (text.includes(key)) {
-        tags.forEach(t => { if (!newTags.includes(t)) newTags.push(t); });
-      }
-    });
-    return newTags;
-  }, []);
-
-  // Centralized Sanity Check for Prompt Data
-  const sanitizePrompt = useCallback((p) => {
-    let cleanedImages = p.images?.length > 0 ? [p.images[0]] : [];
-    let cleanedThumbnail = cleanedImages[0] || p.thumbnail || null;
-    if (cleanedThumbnail && cleanedImages.length === 0) cleanedImages = [cleanedThumbnail];
-
-    return {
-      ...p,
-      images: cleanedImages,
-      thumbnail: cleanedThumbnail,
-      tags: autoTag(p.body, p.tags || []),
-      presets: p.presets || []
-    };
-  }, [autoTag]);
-
-  const savePrompt = useCallback(p => {
-    const finalPrompt = sanitizePrompt(p);
-    
-    setPrompts(prev => {
-      const exists = prev.find(x => String(x.id) === String(finalPrompt.id));
-      return exists ? prev.map(x => String(x.id) === String(finalPrompt.id) ? finalPrompt : x) : [finalPrompt, ...prev];
-    });
-    setIsStudioView(false);
-    setShowModal(false);
-    setEditPrompt(null);
-    toast(p.id && editPrompt ? 'Prompt updated ✓' : 'Prompt created ✓', 'violet');
-  }, [editPrompt, sanitizePrompt]);
-
-  const deletePrompt = useCallback(id => {
-    setPrompts(prev => prev
-      .filter(p => p.id !== id)
-      .map(p => p.linkedPromptId === String(id) || p.linkedPromptId === Number(id) ? { ...p, linkedPromptId: null } : p)
-    );
-    setActiveId(null);
-    toast('Prompt deleted', 'danger');
-  }, []);
-
-  const toggleFav = useCallback(id => {
-    setPrompts(prev => prev.map(p => String(p.id) === String(id) ? { ...p, fav: !p.fav } : p));
-  }, []);
-
-  const [copySuccess, setCopySuccess] = useState(null);
-
-  const copyPrompt = useCallback((p, withVars = false, customText = null) => {
-    const textToCopy = customText || p.body;
-    navigator.clipboard.writeText(textToCopy).catch(() => {});
-    setPrompts(prev => prev.map(x =>
-      x.id === p.id ? { ...x, uses: x.uses + 1, history: [...(x.history || []), x.uses + 1] } : x
-    ));
-    setCopySuccess({ title: p.title, body: textToCopy });
-  }, []);
-
-  const importPrompts = useCallback(imported => {
-    setPrompts(prev => {
-      const existingIds = new Set(prev.map(p => String(p.id)));
-      const newOnes = imported.filter(p => !existingIds.has(String(p.id)));
-      return [...prev, ...newOnes];
-    });
-    toast(`Imported ${imported.length} prompts ✓`, 'cyan');
-  }, []);
-
-  const handleOnboarding = useCallback((choice) => {
-    if (choice === 'demo') {
-      setPrompts(SEED_PROMPTS);
-    } else {
-      setPrompts([]);
-    }
-    setOnboardingDone(true);
-  }, [setPrompts, setOnboardingDone]);
-
-  const addCategory = useCallback((name) => {
-    if (!name || categories.includes(name)) return;
-    setCategories(prev => [...prev, name]);
-    setCategoryColors(prev => ({ ...prev, [name]: DEFAULT_CAT_COLORS['All'] }));
-    toast(`Collection "${name}" created`, 'violet');
-  }, [categories]);
-
-  const renameCategory = useCallback((oldName, newName) => {
-    if (!newName || categories.includes(newName) || oldName === 'All') return;
-    setCategories(prev => prev.map(c => c === oldName ? newName : c));
-    setCategoryColors(prev => {
-      const next = { ...prev, [newName]: prev[oldName] };
-      delete next[oldName];
-      return next;
-    });
-    setPrompts(prev => prev.map(p => p.category === oldName ? { ...p, category: newName } : p));
-    if (catFilter === oldName) setCatFilter(newName);
-    toast(`Collection renamed to "${newName}"`, 'violet');
-  }, [categories, catFilter]);
-
-  const deleteCategory = useCallback((name) => {
-    if (name === 'All') return;
-    setCategories(prev => prev.filter(c => c !== name));
-    setPrompts(prev => prev.map(p => p.category === name ? { ...p, category: 'System' } : p));
-    if (catFilter === name) setCatFilter('All');
-    toast(`Collection "${name}" removed`, 'danger');
-  }, [catFilter]);
-
-  const reorderCategory = useCallback((index, direction) => {
-    const newIdx = index + direction;
-    if (newIdx < 0 || newIdx >= categories.length || categories[index] === 'All' || categories[newIdx] === 'All') return;
-    setCategories(prev => {
-      const next = [...prev];
-      [next[index], next[newIdx]] = [next[newIdx], next[index]];
-      return next;
-    });
-  }, [categories]);
-
-  const renameTag = useCallback((oldTag, newTag) => {
-    if (!newTag || oldTag === newTag) return;
-    setPrompts(prev => prev.map(p => ({
-      ...p,
-      tags: p.tags.map(t => t === oldTag ? newTag : t)
-    })));
-    if (tagFilter === oldTag) setTagFilter(newTag);
-    toast(`Tag updated to #${newTag}`, 'cyan');
-  }, [tagFilter]);
-
-  const deleteTag = useCallback((tag) => {
-    setPrompts(prev => prev.map(p => ({
-      ...p,
-      tags: p.tags.filter(t => t !== tag)
-    })));
-    if (tagFilter === tag) setTagFilter('');
-    toast(`Tag #${tag} removed`, 'danger');
-  }, [tagFilter]);
-  
-  const addModel = useCallback((name) => {
-    if (!name || modelColors[name]) return;
-    setModelColors(prev => ({ ...prev, [name]: '#cccccc' }));
-    toast(`Model "${name}" added`, 'violet');
-  }, [modelColors]);
-
-  const updateModelColor = useCallback((model, color) => {
-    setModelColors(prev => ({ ...prev, [model]: color }));
-  }, []);
-
-  const renameModel = useCallback((oldName, newName) => {
-    if (!newName || modelColors[newName] || oldName === newName) return;
-    setModelColors(prev => {
-      const next = { ...prev, [newName]: prev[oldName] };
-      delete next[oldName];
-      return next;
-    });
-    setPrompts(prev => prev.map(p => p.model === oldName ? { ...p, model: newName } : p));
-    if (modelFilter === oldName) setModelFilter(newName);
-    toast(`Model renamed to "${newName}"`, 'violet');
-  }, [modelColors, modelFilter]);
-
-  const deleteModel = useCallback((model) => {
-    setModelColors(prev => {
-      const next = { ...prev };
-      delete next[model];
-      return next;
-    });
-    setPrompts(prev => prev.map(p => p.model === model ? { ...p, model: 'Any' } : p));
-    if (modelFilter === model) setModelFilter('All');
-    toast(`Model "${model}" removed`, 'danger');
-  }, [modelFilter]);
-
-  const updatePrompt = useCallback(p => {
-    const cleaned = sanitizePrompt(p);
-    setPrompts(prev => prev.map(x => String(x.id) === String(cleaned.id) ? cleaned : x));
-  }, [sanitizePrompt]);
-
-  const openNew = useCallback(() => { setEditPrompt(null); setShowModal(true); setIsStudioView(false); }, []);
-  const openEdit = useCallback((p) => { setEditPrompt(p); setShowModal(true); setIsStudioView(false); }, []);
-  const openStudio = useCallback((p = null) => { setEditPrompt(p); setIsStudioView(true); setShowModal(false); }, []);
-
-  const hasFilters = search || tagFilter || modelFilter !== 'All' || catFilter !== 'All';
+  const clearAllFilters = () => {
+    setSearch('');
+    setTagFilter('');
+    setModelFilter('All');
+    setCatFilter('All');
+  };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="app-shell" style={{ height: '100%', overflow: 'hidden', background: 'var(--bg-app)', color: 'var(--text-primary)' }}>
       <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
-      <Sidebar
-        prompts={prompts}
-        categories={categories}
-        catFilter={catFilter} setCatFilter={setCatFilter}
-        modelFilter={modelFilter} setModelFilter={setModelFilter}
-        tagFilter={tagFilter} setTagFilter={setTagFilter}
-        onNew={openNew}
-        onImportExport={() => setShowIO(true)}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        catColors={categoryColors}
-        setCatColor={(cat, col) => setCategoryColors(prev => ({ ...prev, [cat]: col }))}
-        onAddCat={addCategory}
-        onRenameCat={renameCategory}
-        onDeleteCat={deleteCategory}
-        onReorderCat={reorderCategory}
-        onRenameTag={renameTag}
-        onDeleteTag={deleteTag}
-        modelColors={modelColors}
-        onAddModel={addModel}
-        onUpdateModelColor={updateModelColor}
-        onRenameModel={renameModel}
-        onDeleteModel={deleteModel}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        requestConfirm={requestConfirm}
-      />
+      <Sidebar />
 
-      <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <main className="main-content flex-column" style={{ flex: 1, overflow: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Mobile Header */}
-        <div className="mobile-header" style={{ background: '#2a2522' }}>
-          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', fontSize: 24, padding: 4 }}>☰</button>
-          <div className="ft" style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', letterSpacing: -0.5 }}>PROMPT KEEPER</div>
-          <div style={{ width: 32 }}></div> {/* Spacer to keep title centered */}
+        <div className="mobile-header" style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-subtle)', padding: '12px 16px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', padding: 6, color: 'var(--text-primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Menu size={18} />
+          </button>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: 0.3 }}>
+            {activeNav === 'repos' 
+              ? 'Repository Hub' 
+              : activeNav === 'bookmarks' 
+              ? 'Website Bookmarks' 
+              : activeNav === 'inbox' 
+              ? 'Inbox & Triage' 
+              : activeNav === 'lists' 
+              ? 'Saved Lists' 
+              : activeNav === 'finance-bento'
+              ? 'Finance Bento UI'
+              : 'PromptKeeper'}
+          </div>
+          <button onClick={() => setQuickSaveOpen(true)} style={{ background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 'var(--radius-sm)', width: 30, height: 30, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Plus size={16} />
+          </button>
         </div>
 
-        {/* Unified Toolbar Row */}
-        <div style={{ 
-          padding: '12px 20px', 
-          borderBottom: '1px solid var(--border-light)', 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: 16,
-          background: 'var(--bg-panel)', 
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          flexShrink: 0,
-          flexWrap: 'wrap',
-          zIndex: 40
-        }}>
-          {/* Collection Info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="ft" style={{ fontSize: 12, color: 'var(--text-sub)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              {filtered.length} ITEMS
-            </span>
-          </div>
+        {/* Global Workbench & Toolbar for Prompt Library */}
+        {activeNav !== 'repos' && activeNav !== 'bookmarks' && activeNav !== 'inbox' && activeNav !== 'lists' && activeNav !== 'finance-bento' && (
+          <>
+            {/* 1. Workbench Top Header */}
+            <div className="hide-mobile" style={{
+              padding: '14px 24px',
+              background: 'var(--bg-surface)',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <img
+                  src={logoImg}
+                  alt="PromptKeeper"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    objectFit: 'contain',
+                    flexShrink: 0
+                  }}
+                />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em', fontFamily: 'Geist, sans-serif' }}>
+                      Prompt Library
+                    </h1>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: 'var(--text-tertiary)',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      padding: '1px 7px',
+                      borderRadius: 6,
+                      fontFamily: 'Geist Mono, monospace',
+                      fontVariantNumeric: 'tabular-nums'
+                    }}>
+                      {prompts.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Search Bar */}
-          <div style={{ flex: 1, position: 'relative', minWidth: 200, display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-sub)', fontSize: 16, fontWeight: 600, pointerEvents: 'none' }}>⌕</span>
-              <input
-                id="search-input"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={window.innerWidth <= 768 ? "SEARCH..." : "SEARCH PROMPTS... ⌘K"}
-                style={{ paddingLeft: 40, height: 40, fontSize: 12 }}
-              />
+              {/* Action Buttons: Optimizer, Runner, New Prompt */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* AI Optimizer Button */}
+                <button
+                  className="btn"
+                  onClick={() => {
+                    if (activePrompt) {
+                      openOptimizer({
+                        initialText: activePrompt.body,
+                        promptTitle: activePrompt.title
+                      });
+                    } else if (prompts.length > 0) {
+                      openOptimizer({
+                        initialText: prompts[0].body,
+                        promptTitle: prompts[0].title
+                      });
+                    } else {
+                      openOptimizer({
+                        initialText: 'Please write a production-ready system prompt for...',
+                        promptTitle: 'AI Prompt Optimizer'
+                      });
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    height: 32,
+                    padding: '0 12px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="AI Prompt Optimizer & Polisher (Feature 5)"
+                >
+                  <Sparkles size={13} style={{ color: 'var(--accent)' }} />
+                  <span>AI Optimizer</span>
+                </button>
+
+                {/* Variable Runner Button */}
+                <button
+                  className="btn"
+                  onClick={() => {
+                    if (activePrompt) {
+                      openRunner(activePrompt);
+                    } else if (prompts.length > 0) {
+                      openRunner(prompts[0]);
+                    } else {
+                      openRunner({
+                        title: 'Quick Test Runner',
+                        body: 'Draft prompt: Test your prompt variables {{var}} here.'
+                      });
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(232, 255, 31, 0.08)',
+                    border: '1px solid rgba(232, 255, 31, 0.25)',
+                    color: 'var(--accent)',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    height: 32,
+                    padding: '0 12px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Prompt Variable Runner & Quick Test (Feature 4)"
+                >
+                  <Play size={12} fill="currentColor" />
+                  <span>Variable Runner</span>
+                </button>
+
+                <button
+                  className="btn"
+                  onClick={openNew}
+                  style={{
+                    background: 'var(--accent)',
+                    color: '#0b0b0c',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    height: 32,
+                    padding: '0 14px',
+                    borderRadius: 6,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'opacity 0.15s ease'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                >
+                  <Plus size={14} strokeWidth={2.5} />
+                  <span>New Prompt</span>
+                </button>
+              </div>
             </div>
-            <select value={sort} onChange={e => setSort(e.target.value)} style={{ width: 130, height: 40, flexShrink: 0, fontSize: 12 }}>
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label.toUpperCase()}</option>)}
-            </select>
-          </div>
 
-          {/* System Actions */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {hasFilters && (
-              <button className="btn btn-d btn-sm" onClick={() => { setSearch(''); setTagFilter(''); setModelFilter('All'); setCatFilter('All'); }} style={{ height: 40, padding: '0 14px' }}>
-                ✕
+            {/* 2. Bento Category Rail */}
+            <div className="hide-scrollbar bento-category-rail" style={{
+              background: '#090a0f',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+              padding: '6px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              overflowX: 'auto',
+              flexShrink: 0
+            }}>
+              <button
+                onClick={() => setCatFilter('All')}
+                style={{
+                  background: catFilter === 'All' ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.03)',
+                  border: catFilter === 'All' ? '1px solid rgba(255, 255, 255, 0.18)' : '1px solid rgba(255, 255, 255, 0.06)',
+                  color: catFilter === 'All' ? '#fff' : 'var(--text-secondary)',
+                  fontWeight: 500,
+                  fontSize: 11.5,
+                  height: 28,
+                  padding: '0 10px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                  transition: 'background 0.15s ease, color 0.15s ease',
+                  fontFamily: 'Geist, sans-serif'
+                }}
+              >
+                <span>All Prompts</span>
+                <span style={{
+                  fontSize: 10,
+                  color: catFilter === 'All' ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-tertiary)',
+                  fontFamily: 'Geist Mono, monospace',
+                  fontVariantNumeric: 'tabular-nums'
+                }}>
+                  {prompts.length}
+                </span>
               </button>
+
+              {categories.map(cat => {
+                const count = prompts.filter(p => p.category === cat).length;
+                const isActive = catFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setCatFilter(cat)}
+                    style={{
+                      background: isActive ? 'rgba(255, 255, 255, 0.10)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isActive ? '1px solid rgba(255, 255, 255, 0.18)' : '1px solid rgba(255, 255, 255, 0.06)',
+                      color: isActive ? '#fff' : 'var(--text-secondary)',
+                      fontWeight: 500,
+                      fontSize: 11.5,
+                      height: 28,
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      whiteSpace: 'nowrap',
+                      transition: 'background 0.15s ease, color 0.15s ease',
+                      fontFamily: 'Geist, sans-serif'
+                    }}
+                  >
+                    <span>{cat}</span>
+                    <span style={{
+                      fontSize: 10,
+                      color: isActive ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-tertiary)',
+                      fontFamily: 'Geist Mono, monospace',
+                      fontVariantNumeric: 'tabular-nums'
+                    }}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 3. Bento Toolbar Row */}
+            <div className="workbench-toolbar" style={{ 
+              padding: '10px 24px',
+              background: 'var(--bg-app)',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexShrink: 0
+            }}>
+              {/* Search bar */}
+              <div style={{ flex: 1, maxWidth: 440, position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span style={{ position: 'absolute', left: 12, color: 'var(--text-tertiary)', pointerEvents: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                  <Search size={14} />
+                </span>
+                <input
+                  id="search-input"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search prompts... (⌘K)"
+                  style={{
+                    width: '100%',
+                    paddingLeft: 34,
+                    paddingRight: search ? 34 : 12,
+                    height: 34,
+                    fontSize: 12,
+                    fontFamily: 'Geist, sans-serif',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 6,
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                  onFocus={e => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                  }}
+                  onBlur={e => {
+                    e.target.style.borderColor = 'var(--border-subtle)';
+                  }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    style={{ position: 'absolute', right: 10, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: 2 }}
+                    title="Clear search"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              {/* Controls on Right */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {/* Sort Selector */}
+                <select
+                  value={sort}
+                  onChange={e => setSort(e.target.value)}
+                  style={{
+                    height: 36,
+                    padding: '0 12px',
+                    fontSize: 12,
+                    fontFamily: 'Geist, sans-serif',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>Sort: {o.label}</option>)}
+                </select>
+
+                {/* View Mode Toggle (Bento Segmented) */}
+                <div style={{ display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: 2, gap: 2 }}>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    style={{
+                      background: viewMode === 'grid' ? 'var(--accent-muted)' : 'transparent',
+                      color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)',
+                      border: 'none',
+                      padding: '0 8px',
+                      height: 30,
+                      cursor: 'pointer',
+                      borderRadius: 'var(--radius-xs)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Grid View"
+                  >
+                    <LayoutGrid size={14} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    style={{
+                      background: viewMode === 'list' ? 'var(--accent-muted)' : 'transparent',
+                      color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)',
+                      border: 'none',
+                      padding: '0 8px',
+                      height: 30,
+                      cursor: 'pointer',
+                      borderRadius: 'var(--radius-xs)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="List View"
+                  >
+                    <List size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Active Filters Bar */}
+            {hasFilters && (
+              <div style={{ padding: '8px 24px', background: 'var(--bg-surface-hover)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11 }}>
+                <span style={{ color: 'var(--text-tertiary)', fontWeight: 600 }}>Active Filters:</span>
+                {catFilter !== 'All' && (
+                  <span style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: '2px 8px', borderRadius: 4, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    Collection: {catFilter}
+                    <button onClick={() => setCatFilter('All')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}><X size={12} /></button>
+                  </span>
+                )}
+                {modelFilter !== 'All' && (
+                  <span style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: '2px 8px', borderRadius: 4, color: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    Model: {modelFilter}
+                    <button onClick={() => setModelFilter('All')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}><X size={12} /></button>
+                  </span>
+                )}
+                {tagFilter && (
+                  <span style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: '2px 8px', borderRadius: 4, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    #{tagFilter}
+                    <button onClick={() => setTagFilter('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}><X size={12} /></button>
+                  </span>
+                )}
+                {search && (
+                  <span style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', padding: '2px 8px', borderRadius: 4, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    Query: "{search}"
+                    <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}><X size={12} /></button>
+                  </span>
+                )}
+                <button
+                  onClick={clearAllFilters}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontWeight: 600, fontSize: 11, marginLeft: 'auto' }}
+                >
+                  Reset all
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Content Area */}
+        {activeNav === 'repos' ? (
+          <RepositoryHub
+            repositories={repositories}
+            addRepository={addRepository}
+            updateRepository={updateRepository}
+            deleteRepository={deleteRepository}
+            toggleFavoriteRepo={toggleFavoriteRepo}
+            togglePinRepo={togglePinRepo}
+            updateRepoStatus={updateRepoStatus}
+            refreshRepoMetadata={refreshRepoMetadata}
+            statusCounts={repoStatusCounts}
+            languageCounts={repoLanguageCounts}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            requestConfirm={requestConfirm}
+            toast={toast}
+          />
+        ) : activeNav === 'bookmarks' ? (
+          <BookmarkHub
+            bookmarks={bookmarks}
+            addBookmark={addBookmark}
+            updateBookmark={updateBookmark}
+            deleteBookmark={deleteBookmark}
+            toggleFavoriteBookmark={toggleFavoriteBookmark}
+            togglePinBookmark={togglePinBookmark}
+            updateBookmarkStatus={updateBookmarkStatus}
+            bookmarkStatusCounts={bookmarkStatusCounts}
+            bookmarkCategoryCounts={bookmarkCategoryCounts}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            requestConfirm={requestConfirm}
+            toast={toast}
+          />
+        ) : activeNav === 'inbox' ? (
+          <InboxView />
+        ) : activeNav === 'lists' ? (
+          <SavedListsView />
+        ) : activeNav === 'finance-bento' ? (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <FinanceBentoDemo />
+          </div>
+        ) : (
+          /* Prompt Library Cards */
+          <div className="main-scroll-view" style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '80px 20px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)' }}>
+                <div style={{ fontSize: 36, marginBottom: 16, opacity: 0.3 }}>∅</div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
+                  {hasFilters ? 'No matches found' : 'Your vault is empty'}
+                </div>
+                <div style={{ fontSize: 13, marginBottom: 24, color: 'var(--text-secondary)' }}>
+                  {hasFilters ? 'Try adjusting your search query or filters' : 'Start by creating your first prompt template'}
+                </div>
+                {hasFilters
+                  ? <button className="btn" onClick={clearAllFilters} style={{ background: 'var(--bg-surface-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 20px' }}>Clear filters</button>
+                  : <button className="btn" onClick={openNew} style={{ background: 'var(--accent)', color: '#000', fontWeight: 700, padding: '10px 22px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={15} /> Create Prompt</button>
+                }
+              </div>
+            ) : viewMode === 'list' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {filtered.map(p => (
+                  <PromptCard key={p.id} p={p} />
+                ))}
+              </div>
+            ) : (
+              <div className="responsive-bento-grid">
+                {filtered.map(p => (
+                  <PromptCard key={p.id} p={p} />
+                ))}
+              </div>
             )}
           </div>
-        </div>
-
-        {/* Cards */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px 40px' }}>
-          {filtered.length === 0 ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '100px 20px' }}>
-              <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>∅</div>
-              <div className="ft" style={{ fontSize: 20, marginBottom: 8, color: 'var(--text)' }}>
-                {hasFilters ? 'NO MATCHES FOUND' : 'VAULT IS EMPTY'}
-              </div>
-              <div style={{ fontSize: 14, marginBottom: 28, color: 'var(--text-sub)' }}>
-                {hasFilters ? 'TRY CLEARING YOUR FILTERS' : 'START BY CREATING YOUR FIRST PROMPT'}
-              </div>
-              {hasFilters
-                ? <button className="btn btn-g" onClick={() => { setSearch(''); setTagFilter(''); setModelFilter('All'); setCatFilter('All'); }}>CLEAR FILTERS</button>
-                : <button className="btn btn-c btn-lg" onClick={openNew}>+ CREATE PROMPT</button>
-              }
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-              {filtered.map(p => (
-                <PromptCard
-                  key={p.id} p={p}
-                  isActive={p.id === activeId}
-                  onClick={p => setActiveId(activeId === p.id ? null : p.id)}
-                  onFav={toggleFav}
-                  onCopy={copyPrompt}
-                  modelColors={modelColors}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        )}
+      </main>
 
       {activePrompt && (
-        <DetailPanel
-          p={activePrompt}
-          onClose={() => setActiveId(null)}
-          onEdit={openEdit}
-          onStudio={openStudio}
-          onDelete={deletePrompt}
-          onFav={toggleFav}
-          onCopy={copyPrompt}
-          onUpdate={updatePrompt}
-          onJump={setActiveId}
-          linkedPrompt={linkedPrompt}
-          isOpen={!!activePrompt}
-          modelColors={modelColors}
-          requestConfirm={requestConfirm}
-        />
+        <ErrorBoundary onReset={() => setActiveId(null)}>
+          <DetailPanel key={activePrompt.id} />
+        </ErrorBoundary>
       )}
 
       {isStudioView && (
-        <ForgeStudio 
-          initial={editPrompt}
-          categories={categories} 
-          modelColors={modelColors} 
-          onSave={savePrompt} 
-          onClose={() => { setIsStudioView(false); setEditPrompt(null); }} 
-        />
+        <ForgeStudio />
       )}
 
       {showModal && (
-        <PromptModal
-          initial={editPrompt}
-          prompts={prompts}
-          categories={categories}
-          modelColors={modelColors}
-          onSave={savePrompt}
-          onClose={() => { setShowModal(false); setEditPrompt(null); }}
-        />
+        <PromptModal />
       )}
       
+      {showIO && (
+        <ImportExportModal />
+      )}
+
       {confirmConfig && (
         <ConfirmModal 
           {...confirmConfig} 
@@ -462,51 +628,142 @@ export default function App() {
       <Toast toasts={toasts} />
       
       {copySuccess && (
-        <div className="modal-overlay" onClick={() => setCopySuccess(null)}>
-          <div className="industrial-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
-            <div style={{ padding: '24px', borderBottom: '1px solid #1e2128', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
-              <div className="ft" style={{ fontSize: 13, fontWeight: 900, color: '#f0a532', letterSpacing: 2 }}>PROMPT_COPIED</div>
+        <div className="modal-overlay" onClick={() => setCopySuccess(null)} style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}>
+          <div className="industrial-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460, background: 'var(--bg-surface)', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface-hover)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>Prompt copied to clipboard</div>
             </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 700 }}>CONTENT: {copySuccess.title.toUpperCase()}</div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 8, fontWeight: 600 }}>Template: {copySuccess.title}</div>
               <div style={{ 
-                background: '#080a10', border: '1px solid #1e2128', padding: '16px', 
-                maxHeight: '160px', overflowY: 'auto', fontSize: 12, color: '#61afef', 
-                fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', lineHeight: 1.5
+                background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', padding: '14px', 
+                maxHeight: '160px', overflowY: 'auto', fontSize: 12, color: 'var(--secondary)', 
+                fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'pre-wrap', lineHeight: 1.6,
+                borderRadius: 'var(--radius-sm)'
               }}>
                 {copySuccess.body}
               </div>
-            </div>
-            <div style={{ padding: '16px 24px', borderTop: '1px solid #1e2128', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'center' }}>
-              <button className="btn btn-v btn-fw" onClick={() => setCopySuccess(null)} style={{ height: 48, fontWeight: 900 }}>DISMISS</button>
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => setCopySuccess(null)} style={{ background: 'var(--accent)', color: '#000', fontWeight: 700, padding: '7px 16px' }}>Done</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {!onboardingDone && <OnboardingModal onChoose={handleOnboarding} />}
-
-      {!showModal && !showIO && !isStudioView && !activePrompt && (
-        <div className={`fab-container ${fabOpen ? 'open' : ''}`} style={{ right: activePrompt && window.innerWidth > 768 ? 432 : 32 }}>
-          <div className="fab-menu">
-            <button className="fab-item" onClick={() => { setFabOpen(false); openStudio(null); }}>
-              <div className="fab-icon">⚡</div>
-              JSON EDITOR
-            </button>
-            <button className="fab-item" onClick={() => { setFabOpen(false); openNew(); }}>
-              <div className="fab-icon">✏️</div>
-              NEW PROMPT
-            </button>
-          </div>
-          <button
-            className="fab-trigger afu"
-            onClick={() => setFabOpen(!fabOpen)}
-            title="Create Menu (⌘N)"
-          >
-            <span>+</span>
-          </button>
-        </div>
+      {onboardingDone === false && (
+        <OnboardingModal onChoose={handleOnboarding} onComplete={handleOnboarding} />
       )}
+
+
+      {/* Cloud Sync & Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        promptsCount={prompts.length}
+        reposCount={repositories.length}
+      />
+
+      {/* Universal Command Palette */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        prompts={prompts}
+        repositories={repositories}
+        bookmarks={bookmarks}
+        recentItems={recentItems}
+        onSelectPrompt={(pr) => {
+          setActiveId(pr.id);
+          setActiveNav('prompts');
+        }}
+        onSelectRepo={() => {
+          setActiveNav('repos');
+        }}
+        onSelectBookmark={() => {
+          setActiveNav('bookmarks');
+        }}
+        onQuickSave={() => setQuickSaveOpen(true)}
+        onNewPrompt={openNew}
+        onAddRepo={() => {
+          setActiveNav('repos');
+        }}
+        onAddBookmark={() => {
+          setActiveNav('bookmarks');
+        }}
+        onOpenStudio={() => openStudio(null)}
+        onOpenOptimizer={() => {
+          if (activePrompt) {
+            openOptimizer({
+              initialText: activePrompt.body,
+              promptTitle: activePrompt.title
+            });
+          } else {
+            openOptimizer({
+              initialText: 'Please review and optimize this prompt for production AI deployment.',
+              promptTitle: 'New Prompt Optimization'
+            });
+          }
+        }}
+        onOpenRunner={() => {
+          if (activePrompt) {
+            openRunner(activePrompt);
+          } else if (prompts.length > 0) {
+            openRunner(prompts[0]);
+          }
+        }}
+        onOpenIO={() => setShowIO(true)}
+        onToggleTheme={toggleTheme}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onSetAccent={setAccent}
+      />
+
+      {/* Quick Save Modal */}
+      {quickSaveOpen && (
+        <QuickSaveModal isOpen={quickSaveOpen} onClose={() => setQuickSaveOpen(false)} />
+      )}
+
+      {/* Tag Manager Modal */}
+      {tagManagerOpen && (
+        <TagManagerModal isOpen={tagManagerOpen} onClose={() => setTagManagerOpen(false)} />
+      )}
+
+      {/* Variable Runner Modal */}
+      {runnerPrompt && (
+        <PromptVariableRunnerModal
+          isOpen={Boolean(runnerPrompt)}
+          onClose={closeRunner}
+          prompt={runnerPrompt}
+        />
+      )}
+
+      {/* Prompt Optimizer Modal */}
+      {optimizerConfig?.isOpen && (
+        <PromptOptimizerModal
+          isOpen={Boolean(optimizerConfig?.isOpen)}
+          onClose={closeOptimizer}
+          initialText={optimizerConfig.initialText}
+          promptTitle={optimizerConfig.promptTitle}
+          onApply={optimizerConfig.onApply}
+        />
+      )}
+
+      {/* GitHub Readme Drawer Modal */}
+      <RepoReadmeDrawerModal
+        isOpen={Boolean(readmeRepo)}
+        onClose={closeReadme}
+        repo={readmeRepo}
+      />
+
+      {/* Bulk Action Floating Bar */}
+      <BulkActionBar 
+        selectedIds={bulkSelectedIds}
+        onClearSelection={() => setBulkSelectedIds([])}
+        totalItemsCount={filtered.length}
+        onSelectAll={() => setBulkSelectedIds(bulkSelectedIds.length === filtered.length ? [] : filtered.map(p => p.id))}
+      />
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

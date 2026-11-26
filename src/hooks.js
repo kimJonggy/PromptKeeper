@@ -13,7 +13,9 @@ export function useLocalStorage(key, init) {
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(state));
-    } catch {}
+    } catch (e) {
+      console.warn(`Failed to persist ${key} to localStorage:`, e);
+    }
   }, [key, state]);
 
   return [state, setState];
@@ -35,16 +37,26 @@ export function useToast() {
 }
 
 export function useKeyboard(handlers) {
+  const handlersRef = useRef(handlers);
+  
+  // Keep the ref updated with the latest handlers
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
+
   useEffect(() => {
     function onKey(e) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      // Don't trigger if typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
+      
       const key = (e.metaKey || e.ctrlKey ? 'cmd+' : '') + e.key.toLowerCase();
-      if (handlers[key]) {
+      if (handlersRef.current[key]) {
         e.preventDefault();
-        handlers[key]();
+        handlersRef.current[key]();
       }
     }
+    
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handlers]);
+  }, []); // Only attach once
 }

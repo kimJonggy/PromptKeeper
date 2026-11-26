@@ -1,9 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType } from '@capacitor/camera';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Sparkles, Play } from 'lucide-react';
 import { extractVars, PATS } from '../data.js';
 import { VarHighlight, ResolvedHighlight } from './UI.jsx';
+import VersionHistoryModal from './studio/VersionHistoryModal.jsx';
+import { useApp } from '../context/AppContext.jsx';
 import '../studio.css';
 
 /* ── ICONS ───────────────────────────────────────────────── */
@@ -36,13 +39,30 @@ function StudioOverlay({ children, onClose }) {
   );
 }
 
-export default function ForgeStudio({ initial, onSave, onClose, categories, modelColors }) {
+export default function ForgeStudio() {
+  const {
+    editPrompt: initial,
+    savePrompt: onSave,
+    setIsStudioView,
+    setEditPrompt,
+    categories,
+    modelColors,
+    restorePromptVersion,
+    openRunner,
+    openOptimizer
+  } = useApp();
+
+  const onClose = () => {
+    setIsStudioView(false);
+    setEditPrompt(null);
+  };
+  const [showVersions, setShowVersions] = useState(false);
   const [jsonInput, setJsonInput] = useState(() => {
     if (initial) {
       try {
         JSON.parse(initial.body);
         return initial.body;
-      } catch (e) {
+      } catch {
         return JSON.stringify({
           prompt: initial.body,
           negative_prompt: initial.negative_prompt || "",
@@ -50,6 +70,8 @@ export default function ForgeStudio({ initial, onSave, onClose, categories, mode
         }, null, 2);
       }
     }
+    const savedDraft = localStorage.getItem('pk_studio_draft');
+    if (savedDraft) return savedDraft;
     return JSON.stringify({
       prompt: "Cinematic portrait of {{subject}}, high quality 8k.",
       negative_prompt: "blurry, noise",
@@ -70,12 +92,6 @@ export default function ForgeStudio({ initial, onSave, onClose, categories, mode
       return extractVars(jsonInput);
     } catch { return []; }
   }, [jsonInput]);
-
-  useEffect(() => {
-    const nextVals = { ...vals };
-    vars.forEach(v => { if (nextVals[v.name] === undefined) nextVals[v.name] = ''; });
-    setVals(nextVals);
-  }, [vars]);
 
   const rendered = useMemo(() => {
     let s = jsonInput;
@@ -115,6 +131,11 @@ export default function ForgeStudio({ initial, onSave, onClose, categories, mode
 
   const handleSave = () => {
     if (!title.trim()) { setIsVaultOpen(true); return; }
+    try { 
+      localStorage.removeItem('pk_studio_draft'); 
+    } catch { 
+      /* ignore */ 
+    }
     onSave({
       ...initial,
       id: initial?.id || Date.now(),
@@ -147,6 +168,37 @@ export default function ForgeStudio({ initial, onSave, onClose, categories, mode
         </div>
         <div className="studio-topbar-title">Studio Core</div>
         <div className="studio-topbar-actions">
+          {initial && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setShowVersions(true)}
+              style={{ background: 'var(--bg-surface-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: 11, padding: '4px 10px', marginRight: 6 }}
+            >
+              ⏱ v{initial.versions?.length ? initial.versions.length + 1 : 1}
+            </button>
+          )}
+          {/* AI Auto Optimize */}
+          <div 
+            className="studio-icon-btn" 
+            onClick={() => openOptimizer({
+              initialText: jsonInput,
+              promptTitle: title || 'Studio Prompt',
+              onApply: (newBody) => setJsonInput(newBody)
+            })} 
+            title="Auto-Optimize Prompt"
+            style={{ color: 'var(--accent)' }}
+          >
+            <Sparkles size={14} />
+          </div>
+          {/* Quick Runner */}
+          <div 
+            className="studio-icon-btn" 
+            onClick={() => openRunner({ title: title || 'Studio Prompt', body: jsonInput, vals })} 
+            title="Test Variable Runner"
+          >
+            <Play size={14} />
+          </div>
           <div className="studio-icon-btn" onClick={handleSave} title="Save"><Ic n="save" /></div>
           <div 
             className="studio-icon-btn" 
@@ -328,6 +380,20 @@ export default function ForgeStudio({ initial, onSave, onClose, categories, mode
             <button className="studio-run-btn" onClick={() => setShowCopyDone(false)}>DISMISS</button>
           </div>
         </StudioOverlay>
+      )}
+
+      {/* Version History Modal */}
+      {initial && (
+        <VersionHistoryModal
+          isOpen={showVersions}
+          onClose={() => setShowVersions(false)}
+          prompt={initial}
+          onRestoreVersion={(id, ver) => {
+            restorePromptVersion(id, ver);
+            setJsonInput(ver.body);
+            if (ver.title) setTitle(ver.title);
+          }}
+        />
       )}
 
     </div>

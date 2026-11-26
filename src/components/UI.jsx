@@ -8,46 +8,54 @@ export function TagPill({ tag, active, onClick, removable, onRemove, size = 'md'
       className={`tag-pill${active ? ' act' : ''}`}
       onClick={onClick}
       style={{
-        background: active ? c : 'var(--bg-sub)',
-        border: 'var(--nb-border-sm)',
-        color: active ? '#000' : 'var(--text)',
+        background: active ? c : 'rgba(255, 255, 255, 0.06)',
+        color: active ? '#0b0b0c' : 'rgba(255, 255, 255, 0.8)',
+        border: active ? `1px solid ${c}` : '1px solid rgba(255, 255, 255, 0.12)',
         fontSize: size === 'sm' ? 10 : 11,
-        padding: size === 'sm' ? '3px 8px' : '4px 12px',
-        boxShadow: active ? '2px 2px 0px 0px #000' : 'none',
+        fontFamily: 'Geist Mono, monospace',
+        fontWeight: 600,
+        letterSpacing: '-0.02em',
+        borderRadius: 11,
+        height: size === 'sm' ? 20 : 22,
+        padding: size === 'sm' ? '0 8px' : '0 10px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.2s cubic-bezier(0.32, 0.72, 0, 1)'
       }}
     >
-      {tag.toUpperCase()}
+      {tag.toLowerCase()}
       {removable && (
         <span
           onClick={e => { e.stopPropagation(); onRemove?.(); }}
-          style={{ fontWeight: 900, fontSize: 14, lineHeight: 1, marginLeft: 6, cursor: 'pointer' }}
+          style={{ fontWeight: 800, fontSize: 13, lineHeight: 1, marginLeft: 6, cursor: 'pointer', opacity: 0.7 }}
         >×</span>
       )}
     </span>
   );
 }
 
-function varColorToHex(c) {
-  // Utility to handle color mapping if needed, but for NB we often just use the vibrant tokens
-  return c;
-}
-
 export function ModelBadge({ model, color, size = 'md' }) {
   const c = color || MODEL_COLORS[model] || '#cccccc';
   return (
-    <span style={{
-      background: c,
-      border: 'var(--nb-border-sm)',
-      color: '#000',
-      padding: size === 'sm' ? '3px 8px' : '4px 12px',
-      borderRadius: 0,
-      fontSize: size === 'sm' ? 9 : 10,
-      fontFamily: 'JetBrains Mono, monospace',
-      fontWeight: 800,
-      textTransform: 'uppercase',
-      whiteSpace: 'nowrap',
-      boxShadow: size === 'sm' ? '1px 1px 0px 0px #000' : 'var(--nb-shadow-sm)',
-    }}>
+    <span 
+      className="fm"
+      style={{
+        background: 'rgba(255, 255, 255, 0.08)',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
+        color: '#ffffff',
+        padding: size === 'sm' ? '2px 8px' : '3px 10px',
+        fontSize: size === 'sm' ? 9.5 : 10.5,
+        fontWeight: 600,
+        borderRadius: 10,
+        fontFamily: 'Geist Mono, monospace',
+        letterSpacing: '-0.02em',
+        whiteSpace: 'nowrap',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5
+      }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, display: 'inline-block' }} />
       {model}
     </span>
   );
@@ -55,18 +63,37 @@ export function ModelBadge({ model, color, size = 'md' }) {
 
 export function Toast({ toasts }) {
   const typeStyle = {
-    cyan:   { bg: 'var(--copy-color)', color: '#000' },
-    violet: { bg: 'var(--primary)', color: '#000' },
-    pink:   { bg: 'var(--accent)', color: '#000' },
-    danger: { bg: 'var(--danger)', color: '#fff' },
+    cyan:   { bg: '#34d399', color: '#0b0b0c' },
+    violet: { bg: '#E8FF1F', color: '#0b0b0c' },
+    pink:   { bg: '#E8FF1F', color: '#0b0b0c' },
+    danger: { bg: '#ef4444', color: '#ffffff' },
   };
   return (
-    <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 3000, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {toasts.map(t => {
         const s = typeStyle[t.type] || typeStyle.cyan;
         return (
-          <div key={t.id} className="toast" style={{ background: s.bg, color: s.color, transition: 'all 0.2s' }}>
-            {t.msg.toUpperCase()}
+          <div
+            key={t.id}
+            style={{
+              padding: '10px 18px',
+              borderRadius: 16,
+              background: 'rgba(15, 15, 18, 0.95)',
+              border: '1px solid rgba(255, 255, 255, 0.16)',
+              boxShadow: '0 12px 30px -10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(20px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 12.5,
+              fontWeight: 600,
+              fontFamily: 'Geist, sans-serif',
+              color: '#fff',
+              animation: 'modalFadeIn 0.2s ease-out'
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.bg, boxShadow: `0 0 8px ${s.bg}` }} />
+            {t.msg}
           </div>
         );
       })}
@@ -84,29 +111,46 @@ export function Label({ children }) {
 
 export function StatRow({ label, value, color }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 4px', borderBottom: '1px solid var(--text-dim)' }}>
+    <div className="flex-between" style={{ padding: '6px 4px', borderBottom: '1px solid var(--border-light)' }}>
       <span className="ft" style={{ fontSize: 10, color: 'var(--text)', fontWeight: 700, letterSpacing: 0.5 }}>{label}</span>
       <span className="ft" style={{ fontSize: 14, fontWeight: 900, color: color || 'var(--text)' }}>{value}</span>
     </div>
   );
 }
 
-export const VarHighlight = React.memo(function VarHighlight({ text }) {
+export const VarHighlight = React.memo(function VarHighlight({ text, onVarClick }) {
   if (!text) return null;
   const parts = text.split(UNRE);
   return (
     <>
       {parts.map((p, i) =>
         UNRE.test(p)
-          ? <span key={i} style={{ 
-              background: 'rgba(242, 140, 40, 0.12)', 
-              color: '#F28C28', 
-              padding: '0 4px', 
-              borderRadius: 0,
-              border: '0.5px solid rgba(242, 140, 40, 0.3)', 
-              fontWeight: 800,
-              fontFamily: 'JetBrains Mono, monospace'
-            }}>{p}</span>
+          ? <span 
+              key={i} 
+              onClick={(e) => {
+                if (onVarClick) {
+                  e.stopPropagation();
+                  const name = p.replace(/[{}$[\]%]/g, '').trim();
+                  onVarClick(name, p);
+                }
+              }}
+              className={onVarClick ? 'interactive-var-chip' : ''}
+              title={onVarClick ? `Click to run or fill variable "${p}"` : 'Variable placeholder'}
+              style={{ 
+                background: 'rgba(232, 255, 31, 0.12)', 
+                color: 'var(--accent)', 
+                padding: '1px 5px', 
+                borderRadius: 4,
+                border: '1px solid rgba(232, 255, 31, 0.35)', 
+                fontWeight: 700,
+                fontFamily: 'Geist Mono, monospace',
+                fontSize: 11.5,
+                margin: '0 1px',
+                display: 'inline-block'
+              }}
+            >
+              {p}
+            </span>
           : <span key={i}>{p}</span>
       )}
     </>
@@ -181,28 +225,28 @@ export function ConfirmModal({ title, message, type = 'confirm', inputPlaceholde
       <div 
         className="industrial-modal" 
         onClick={e => e.stopPropagation()} 
+        style={{ maxWidth: 440 }}
       >
-        <div style={{ padding: '24px', borderBottom: '1px solid #1e2128', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
-          <span className="ft" style={{ fontSize: 13, fontWeight: 800, color: '#f0a532', letterSpacing: 1.5 }}>{title || 'CONFIRMATION_REQUIRED'}</span>
-          <button onClick={onCancel} style={{ background: 'transparent', border: 'none', color: '#6b7280', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface-hover)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent)', letterSpacing: 0.5 }}>{title || 'CONFIRMATION REQUIRED'}</span>
+          <button onClick={onCancel} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', fontSize: 16, cursor: 'pointer' }}>✕</button>
         </div>
-        <div style={{ padding: '24px', fontSize: 14, color: '#c4ccd8', lineHeight: 1.6 }}>
+        <div style={{ padding: '24px 20px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
           {message}
           {type === 'prompt' && (
             <input 
               autoFocus
-              className="studio-var-input"
               value={val} 
               onChange={e => setVal(e.target.value)} 
               placeholder={inputPlaceholder || "Type here..."} 
               onKeyDown={e => e.key === 'Enter' && onConfirm(val)}
-              style={{ marginTop: 16, width: '100%' }}
+              style={{ marginTop: 14, width: '100%', height: 38, background: 'var(--bg-app)', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '0 12px' }}
             />
           )}
         </div>
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #1e2128', display: 'flex', gap: 12, justifyContent: 'flex-end', background: 'rgba(255,255,255,0.02)' }}>
-          <button className="btn btn-d" onClick={onCancel} style={{ padding: '10px 24px', fontSize: 11 }}>CANCEL</button>
-          <button className="btn btn-v" onClick={() => onConfirm(type === 'prompt' ? val : true)} style={{ padding: '10px 24px', fontSize: 11 }}>{type === 'prompt' ? 'SUBMIT' : 'CONFIRM'}</button>
+        <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-surface-hover)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button className="btn btn-sm" onClick={onCancel} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '8px 18px' }}>CANCEL</button>
+          <button className="btn btn-sm" onClick={() => onConfirm(type === 'prompt' ? val : true)} style={{ background: 'var(--accent)', border: 'none', color: '#000', fontWeight: 800, padding: '8px 20px' }}>{type === 'prompt' ? 'SUBMIT' : 'CONFIRM'}</button>
         </div>
       </div>
     </div>
